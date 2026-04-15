@@ -16,7 +16,7 @@ func Create(filename string) {
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
 	undoStack := ([][]byte{})
-	// redoStack := ([][]byte{})
+	redoStack := ([][]byte{})
 	var current []byte
 
 	// file offset moves to end of file cause of os.0_APPEND
@@ -48,16 +48,46 @@ func Create(filename string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("Saving: " + string(current))
+			// fmt.Println("Saving: " + string(current))
 			file.Write((current))
-		case 10:
+		case 10, 13:
 			undoStack = append(undoStack, append([]byte{}, current...))
 			current = append(current, '\n')
-			fmt.Printf("\n")
+
+			fmt.Print("\033[H\033[J")
+			fmt.Print(string(current))
+		case 26: //undo
+			if len(undoStack) > 0 {
+				redoStack = append(redoStack, append([]byte{}, current...))
+
+				current = undoStack[len(undoStack)-1]
+				undoStack = undoStack[:len(undoStack)-1]
+
+				fmt.Print("\033[H\033[J")
+				fmt.Print(string(current))
+			}
+		case 25: //redo
+			if len(redoStack) > 0 {
+				undoStack = append(undoStack, append([]byte{}, current...))
+				current = redoStack[len(redoStack)-1]
+				redoStack = redoStack[:len(redoStack)-1]
+				fmt.Print("\033[H\033[J")
+				fmt.Print(string(current))
+			}
+		case 127: // backspace
+			if len(current) > 0 {
+				undoStack = append(undoStack, append([]byte{}, current...))
+				current = current[:len(current)-1]
+
+				fmt.Print("\033[H\033[J")
+				fmt.Print(string(current))
+			}
 		default:
 			undoStack = append(undoStack, append([]byte{}, current...))
 			current = append(current, b)
-			fmt.Printf("%c", b)
+
+			fmt.Print("\033[H\033[J")
+			fmt.Print(string(current))
 		}
 
 		if err != nil {
